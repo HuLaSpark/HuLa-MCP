@@ -9,8 +9,8 @@
     "sourceMap": true,
     "declaration": true,
     "resolveJsonModule": true,
-    "emitDeclarationOnly": false,
-    "allowImportingTsExtensions": false,
+    "emitDeclarationOnly": true,
+    "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]

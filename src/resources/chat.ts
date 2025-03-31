@@ -1,5 +1,5 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { Message, Conversation } from '../types.js';
+import { Message, Conversation } from '../types.ts';
 
 // 模拟数据
 const mockMessages: Message[] = [
@@ -66,7 +66,7 @@ export function registerChatResources(server: McpServer) {
   server.resource(
     'user-conversations',
     new ResourceTemplate('users://{userId}/conversations', { list: undefined }),
-    async (uri: URL, params: Record<string, string>) => {
+    async (uri: URL, params: Record<string, any>) => {
       const userId = params.userId as string;
       const userConversations = mockConversations.filter(conv => 
         conv.participants.includes(userId)
@@ -84,7 +84,7 @@ export function registerChatResources(server: McpServer) {
   server.resource(
     'conversation-messages',
     new ResourceTemplate('conversations://{conversationId}/messages', { list: undefined }),
-    async (uri: URL, params: Record<string, string>) => {
+    async (uri: URL, params: Record<string, any>) => {
       const conversationId = params.conversationId as string;
       const conversation = mockConversations.find(conv => conv.id === conversationId);
       
@@ -121,7 +121,7 @@ export function registerChatResources(server: McpServer) {
   server.resource(
     'unread-messages',
     new ResourceTemplate('users://{userId}/unread', { list: undefined }),
-    async (uri: URL, params: Record<string, string>) => {
+    async (uri: URL, params: Record<string, any>) => {
       const userId = params.userId as string;
       const unreadCount = mockConversations
         .filter(conv => conv.participants.includes(userId))
@@ -140,7 +140,7 @@ export function registerChatResources(server: McpServer) {
   server.resource(
     'recent-group-messages',
     new ResourceTemplate('groups://{groupId}/recent-messages', { list: undefined }),
-    async (uri: URL, params: Record<string, string>) => {
+    async (uri: URL, params: Record<string, any>) => {
       const groupId = params.groupId as string;
       const recentMessages = mockMessages
         .filter(msg => msg.isGroup && msg.receiverId === groupId)

@@ -1,5 +1,5 @@
 {
-  "name": "hula-mcp-server",
+  "name": "@hula-spark/hula-mcp-server",
   "version": "1.0.0",
   "description": "HuLa 即时通讯应用的 MCP 服务",
   "type": "module",
@@ -20,7 +20,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node-dev --respawn src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "test": "jest",
     "prepublishOnly": "npm run build"
   },
@@ -52,5 +52,8 @@
   "bugs": {
     "url": "https://gitee.com/HuLaSpark/HuLa-MCP/issues"
   },
-  "homepage": "https://gitee.com/HuLaSpark/HuLa-MCP#readme"
+  "homepage": "https://gitee.com/HuLaSpark/HuLa-MCP#readme",
+  "publishConfig": {
+    "access": "public"
+  }
 }
