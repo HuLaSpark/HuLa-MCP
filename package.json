@@ -1,6 +1,6 @@
 {
   "name": "@hula-spark/hula-mcp",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "HuLa 即时通讯应用的 MCP 服务",
   "type": "module",
   "license": "Apache-2.0",
@@ -14,16 +14,16 @@
   },
   "files": [
     "dist",
+    "bin",
+    "src",
     "LICENSE",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-js.js",
     "start": "node bin/hula-mcp.js start",
     "dev": "tsx watch src/index.ts",
-    "test": "jest",
-    "prepublishOnly": "npm run build",
-    "prepare": "npm run build"
+    "test": "jest"
   },
   "keywords": [
     "mcp",

@@ -1,5 +1,5 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { User } from '../types.ts';
+import { User } from '../types.js';
 
 // 模拟数据 - 在实际应用中，这些数据应该从数据库中获取
 const mockUsers: User[] = [

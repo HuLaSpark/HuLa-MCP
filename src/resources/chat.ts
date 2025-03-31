@@ -1,5 +1,5 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { Message, Conversation } from '../types.ts';
+import { Message, Conversation } from '../types.js';
 
 // 模拟数据
 const mockMessages: Message[] = [

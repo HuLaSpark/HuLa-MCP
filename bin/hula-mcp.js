@@ -30,7 +30,7 @@ program
     process.env.PORT = options.port;
     
     // 启动服务
-    const serverPath = path.join(__dirname, '..', 'src', 'index.js');
+    const serverPath = path.join(__dirname, '..', 'dist', 'index.js');
     spawn('node', [serverPath], { stdio: 'inherit' });
   });
 

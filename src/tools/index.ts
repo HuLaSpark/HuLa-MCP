@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { Message } from '../types.ts';
+import { Message } from '../types.js';
 
 // 生成唯一ID的辅助函数
 function generateId(prefix: string): string {

@@ -1,5 +1,5 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { Group } from '../types.ts';
+import { Group } from '../types.js';
 
 // 模拟数据 - 在实际应用中，这些数据应该从数据库中获取
 const mockGroups: Group[] = [
