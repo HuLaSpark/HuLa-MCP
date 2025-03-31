@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HuLa MCP 测试客户端</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .log-container {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin-top: 10px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            word-break: break-all;
+        }
+        .log-entry.request {
+            color: #0066cc;
+        }
+        .log-entry.response {
+            color: #009900;
+        }
+        .log-entry.error {
+            color: #cc0000;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .json-viewer {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>HuLa MCP 测试客户端</h1>
+    
+    <div class="container">
+        <div class="card">
+            <h2>连接状态</h2>
+            <div>
+                <span id="connection-status">未连接</span>
+                <button id="connect-btn">连接到MCP服务</button>
+                <button id="disconnect-btn" disabled>断开连接</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>资源测试</h2>
+            <div class="form-group">
+                <label for="resource-select">选择资源:</label>
+                <select id="resource-select">
+                    <option value="users://list">用户列表 (users://list)</option>
+                    <option value="users://online">在线用户 (users://online)</option>
+                    <option value="groups://list">群组列表 (groups://list)</option>
+                    <option value="users://user-1">用户详情 (users://user-1)</option>
+                    <option value="groups://group-1">群组详情 (groups://group-1)</option>
+                    <option value="users://user-1/conversations">用户会话 (users://user-1/conversations)</option>
+                    <option value="groups://group-1/members">群组成员 (groups://group-1/members)</option>
+                    <option value="users://user-1/unread">未读消息数 (users://user-1/unread)</option>
+                </select>
+            </div>
+            <button id="fetch-resource-btn">获取资源</button>
+            <div id="resource-result" class="json-viewer" style="display: none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>工具测试</h2>
+            <div class="form-group">
+                <label for="tool-select">选择工具:</label>
+                <select id="tool-select">
+                    <option value="send-message">发送消息 (send-message)</option>
+                    <option value="mark-message-read">标记消息已读 (mark-message-read)</option>
+                    <option value="update-user-status">更新用户状态 (update-user-status)</option>
+                    <option value="search-messages">搜索消息 (search-messages)</option>
+                </select>
+            </div>
+            <div id="tool-params-container">
+                <!-- 动态生成的参数输入框将显示在这里 -->
+            </div>
+            <button id="call-tool-btn">调用工具</button>
+            <div id="tool-result" class="json-viewer" style="display: none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>日志</h2>
+            <div class="log-container" id="log-container"></div>
+            <button id="clear-log-btn">清除日志</button>
+        </div>
+    </div>
+
+    <script>
+        // 服务器配置
+        const SERVER_URL = window.location.origin; // 自动获取当前服务器URL
+        const SSE_ENDPOINT = `${SERVER_URL}/sse`;
+        const MESSAGES_ENDPOINT = `${SERVER_URL}/messages`;
+
+        // 全局变量
+        let sessionId = null;
+        let eventSource = null;
+
+        // DOM元素
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const connectionStatus = document.getElementById('connection-status');
+        const resourceSelect = document.getElementById('resource-select');
+        const fetchResourceBtn = document.getElementById('fetch-resource-btn');
+        const resourceResult = document.getElementById('resource-result');
+        const toolSelect = document.getElementById('tool-select');
+        const toolParamsContainer = document.getElementById('tool-params-container');
+        const callToolBtn = document.getElementById('call-tool-btn');
+        const toolResult = document.getElementById('tool-result');
+        const logContainer = document.getElementById('log-container');
+        const clearLogBtn = document.getElementById('clear-log-btn');
+
+        // 工具参数定义
+        const toolParams = {
+            'send-message': [
+                { name: 'content', type: 'text', label: '消息内容', required: true },
+                { name: 'senderId', type: 'text', label: '发送者ID', required: true, default: 'user-1' },
+                { name: 'receiverId', type: 'text', label: '接收者ID', required: true, default: 'user-2' },
+                { name: 'type', type: 'select', label: '消息类型', options: ['text', 'image', 'file', 'audio', 'video'], default: 'text' },
+                { name: 'isGroup', type: 'checkbox', label: '是否群组消息', default: false }
+            ],
+            'mark-message-read': [
+                { name: 'messageId', type: 'text', label: '消息ID', required: true, default: 'msg-3' },
+                { name: 'userId', type: 'text', label: '用户ID', required: true, default: 'user-1' }
+            ],
+            'update-user-status': [
+                { name: 'userId', type: 'text', label: '用户ID', required: true, default: 'user-1' },
+                { name: 'status', type: 'select', label: '状态', options: ['online', 'offline', 'away'], default: 'online' }
+            ],
+            'search-messages': [
+                { name: 'query', type: 'text', label: '搜索关键词', required: true },
+                { name: 'userId', type: 'text', label: '用户ID', required: true, default: 'user-1' },
+                { name: 'limit', type: 'number', label: '结果数量限制', default: 10 }
+            ]
+        };
+
+        // 格式化JSON
+        function formatJSON(obj) {
+            return JSON.stringify(obj, null, 2);
+        }
+
+        // 日志函数
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // 连接到MCP服务
+        connectBtn.addEventListener('click', () => {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            connectionStatus.textContent = '正在连接...';
+            log('正在连接到MCP服务...');
+            log(`SSE端点: ${SSE_ENDPOINT}`, 'request');
+
+            try {
+                // 创建SSE连接
+                eventSource = new EventSource(SSE_ENDPOINT);
+                
+                eventSource.addEventListener('open', () => {
+                    log('SSE连接已建立', 'response');
+                });
+
+                eventSource.addEventListener('error', (event) => {
+                    log(`SSE连接错误`, 'error');
+                    connectionStatus.textContent = '连接失败';
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    
+                    if (eventSource.readyState === EventSource.CLOSED) {
+                        log('SSE连接已关闭', 'error');
+                        eventSource = null;
+                    }
+                });
+
+                eventSource.addEventListener('message', (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`收到消息: ${JSON.stringify(data)}`, 'response');
+                        
+                        // 如果收到sessionId，保存它
+                        if (data.type === 'hello' && data.sessionId) {
+                            sessionId = data.sessionId;
+                            connectionStatus.textContent = `已连接 (会话ID: ${sessionId})`;
+                            connectBtn.disabled = true;
+                            disconnectBtn.disabled = false;
+                            log(`已获取会话ID: ${sessionId}`, 'response');
+                        }
+                    } catch (error) {
+                        log(`解析消息失败: ${error.message}`, 'error');
+                    }
+                });
+            } catch (error) {
+                log(`创建SSE连接失败: ${error.message}`, 'error');
+                connectionStatus.textContent = '连接失败';
+            }
+        });
+
+        // 断开连接
+        disconnectBtn.addEventListener('click', () => {
+            if (eventSource) {
+                log('正在断开连接...');
+                eventSource.close();
+                eventSource = null;
+                sessionId = null;
+                connectionStatus.textContent = '已断开连接';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                log('已断开与MCP服务的连接');
+            }
+        });
+
+        // 获取资源
+        fetchResourceBtn.addEventListener('click', async () => {
+            if (!sessionId) {
+                log('请先连接到MCP服务', 'error');
+                return;
+            }
+
+            const resourceUri = resourceSelect.value;
+            log(`正在获取资源: ${resourceUri}`, 'request');
+            resourceResult.style.display = 'none';
+
+            try {
+                const response = await fetch(`${MESSAGES_ENDPOINT}?sessionId=${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'getResource',
+                        uri: resourceUri
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+
+                const data = await response.json();
+                log(`资源响应已接收`, 'response');
+                
+                // 显示结果
+                resourceResult.textContent = formatJSON(data);
+                resourceResult.style.display = 'block';
+            } catch (error) {
+                log(`获取资源失败: ${error.message}`, 'error');
+            }
+        });
+
+        // 生成工具参数输入框
+        toolSelect.addEventListener('change', () => {
+            const selectedTool = toolSelect.value;
+            toolParamsContainer.innerHTML = '';
+            toolResult.style.display = 'none';
+
+            if (toolParams[selectedTool]) {
+                toolParams[selectedTool].forEach(param => {
+                    const formGroup = document.createElement('div');
+                    formGroup.className = 'form-group';
+
+                    const label = document.createElement('label');
+                    label.textContent = param.label + (param.required ? ' *' : '');
+                    label.htmlFor = `param-${param.name}`;
+                    formGroup.appendChild(label);
+
+                    if (param.type === 'select') {
+                        const select = document.createElement('select');
+                        select.id = `param-${param.name}`;
+                        select.name = param.name;
+                        
+                        param.options.forEach(option => {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = option;
+                            optionElement.textContent = option;
+                            if (param.default === option) {
+                                optionElement.selected = true;
+                            }
+                            select.appendChild(optionElement);
+                        });
+                        
+                        formGroup.appendChild(select);
+                    } else if (param.type === 'checkbox') {
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = `param-${param.name}`;
+                        checkbox.name = param.name;
+                        checkbox.checked = param.default || false;
+                        formGroup.appendChild(checkbox);
+                    } else {
+                        const input = document.createElement('input');
+                        input.type = param.type;
+                        input.id = `param-${param.name}`;
+                        input.name = param.name;
+                        if (param.default !== undefined) {
+                            input.value = param.default;
+                        }
+                        formGroup.appendChild(input);
+                    }
+
+                    toolParamsContainer.appendChild(formGroup);
+                });
+            }
+        });
+
+        // 初始化工具参数输入框
+        toolSelect.dispatchEvent(new Event('change'));
+
+        // 调用工具
+        callToolBtn.addEventListener('click', async () => {
+            if (!sessionId) {
+                log('请先连接到MCP服务', 'error');
+                return;
+            }
+
+            const selectedTool = toolSelect.value;
+            const params = {};
+            let hasError = false;
+
+            if (toolParams[selectedTool]) {
+                toolParams[selectedTool].forEach(param => {
+                    const element = document.getElementById(`param-${param.name}`);
+                    
+                    if (param.type === 'checkbox') {
+                        params[param.name] = element.checked;
+                    } else if (param.type === 'number') {
+                        params[param.name] = Number(element.value);
+                    } else {
+                        params[param.name] = element.value;
+                    }
+
+                    if (param.required && !params[param.name] && params[param.name] !== false) {
+                        log(`参数 ${param.name} 是必填的`, 'error');
+                        hasError = true;
+                    }
+                });
+            }
+
+            if (hasError) return;
+            toolResult.style.display = 'none';
+
+            log(`正在调用工具: ${selectedTool}，参数: ${JSON.stringify(params)}`, 'request');
+
+            try {
+                const response = await fetch(`${MESSAGES_ENDPOINT}?sessionId=${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'callTool',
+                        name: selectedTool,
+                        params: params
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+
+                const data = await response.json();
+                log(`工具响应已接收`, 'response');
+                
+                // 显示结果
+                toolResult.textContent = formatJSON(data);
+                toolResult.style.display = 'block';
+            } catch (error) {
+                log(`调用工具失败: ${error.message}`, 'error');
+            }
+        });
+
+        // 清除日志
+        clearLogBtn.addEventListener('click', () => {
+            logContainer.innerHTML = '';
+            log('日志已清除');
+        });
+
+        // 初始化
+        log(`服务器URL: ${SERVER_URL}`);
+        log(`SSE端点: ${SSE_ENDPOINT}`);
+        log(`消息端点: ${MESSAGES_ENDPOINT}`);
+        log('测试客户端已准备就绪，请点击"连接到MCP服务"按钮开始测试');
+    </script>
+</body>
+</html>
