@@ -1,6 +1,6 @@
 {
   "name": "@hula-spark/hula-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "HuLa 即时通讯应用的 MCP 服务",
   "type": "module",
   "license": "Apache-2.0",
